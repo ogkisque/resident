@@ -9,6 +9,88 @@ Start:
 		jmp Main
 
 ;----------------------------------------------------
+; Print array to video mem
+; Entry:	
+; Assumes:	
+; Destr:	es, ds, si, cx, ax, bx
+
+RetMem	proc
+
+		push 0b800h
+		pop es
+
+		push cs
+		pop ds
+
+		xor si, si				; si = 0
+		xor di, di				; di = 0
+		mov cx, 15d
+
+		@@loop1:
+
+			mov bx, 19d
+			@@loop2:
+				mov al, OldMem[si]
+				inc si
+				mov ah, OldMem[si]
+				inc si
+
+				mov word ptr es:[di], ax
+
+				inc di
+				inc di
+
+				dec bx
+				cmp bx, 0
+				jge @@loop2
+
+			add di, 120d		; new line
+			loop @@loop1
+
+		ret
+		endp	
+;----------------------------------------------------
+; Save video mem to array
+; Entry:	
+; Assumes:	
+; Destr:	es, ds, si, cx, ax, bx
+
+SaveMem	proc
+
+		push 0b800h
+		pop es
+
+		push cs
+		pop ds
+
+		xor si, si				; si = 0
+		xor di, di				; di = 0
+		mov cx, 15d
+
+		@@loop1:
+
+			mov bx, 19d
+			@@loop2:
+				mov word ptr ax, es:[di]
+
+				mov OldMem[si], al
+				inc si
+				mov OldMem[si], ah
+				inc si
+
+				inc di
+				inc di
+
+				dec bx
+				cmp bx, 0
+				jge @@loop2
+
+			add di, 120d		; new line
+			loop @@loop1
+
+		ret
+		endp	
+;----------------------------------------------------
 ; Writes a line to video mem
 ; Entry:	ah - color attribute
 ;		si - start position of style
@@ -19,16 +101,18 @@ Start:
 
 PrintLine	proc
 
-		lodsb		; al = ds:[si++]
-		stosw		; es:[di] = ax; di += 2
-		sub cl, 2d
-		lodsb
-		rep stosw	; while (cx--) es:[di] = ax; di += 2
-		lodsb
-		stosw
+			lodsb				; al = ds:[si++]
+			stosw				; es:[di] = ax; di += 2
+			sub cl, 2d
 
-		ret
-		endp
+			lodsb
+			rep stosw			; while (cx--) es:[di] = ax; di += 2
+
+			lodsb
+			stosw
+
+			ret
+			endp
 ;-------------------------------------------------
 ; Writes border to video mem
 ; Entry:	
@@ -36,39 +120,40 @@ PrintLine	proc
 ; Destr:	ax, bx, cx, si, di, ds
 
 PrintBorder	proc
-		mov si, offset StringStyle
-		push cs
-		pop ds
-		mov di, 0
 
-		xor ch, ch
-		mov cl, 20d
+			mov si, offset StringStyle
+			push cs
+			pop ds
+			mov di, 0
 
-		call PrintLine
-		mov bl, 13d
-		@@loop:
+			xor ch, ch
 			mov cl, 20d
-			add di, 160d	
-			sub di, cx
-			sub di, cx		; new line
 
 			call PrintLine
-			sub si, 3d
-			dec bl
-			cmp bl, 0
-			jg @@loop
+			mov bl, 13d
+			@@loop:
+				mov cl, 20d
+				add di, 160d	
+				sub di, cx
+				sub di, cx		; new line
 
-		add si, 3d
-		mov cl, 20d
-		add di, 160d
-		sub di, cx
-		sub di, cx
-		call PrintLine
+				call PrintLine
+				sub si, 3d
+				dec bl
+				cmp bl, 0
+				jg @@loop
 
-		mov di, 0
+			add si, 3d
+			mov cl, 20d
+			add di, 160d
+			sub di, cx
+			sub di, cx
+			call PrintLine
 
-		ret
-		endp	
+			mov di, 0
+
+			ret
+			endp	
 ;-------------------------------------------------
 ; Convert from value to ascii
 ; Entry:	
@@ -79,11 +164,11 @@ Convert	proc
 		
 		cmp al, 10d 
 		jge @@letter
-		add al, 48d
+		add al, 48d		; '0'
 		jmp @@exit
 
 		@@letter:
-		add al, 55d
+		add al, 55d		; 'A' - 10
 
 		@@exit:
 		ret
@@ -96,36 +181,36 @@ Convert	proc
 
 PrintReg	proc
 
-		mov al, bh
-		shr al, 4d
-		call Convert
-		mov es:[di], ax
-		inc di
-		inc di
+			mov al, bh
+			shr al, 4d
+			call Convert
+			mov es:[di], ax
+			inc di
+			inc di
 
-		mov al, bh
-		and al, 00001111b
-		call Convert
-		mov es:[di], ax
-		inc di
-		inc di
+			mov al, bh
+			and al, 00001111b
+			call Convert
+			mov es:[di], ax
+			inc di
+			inc di
 
-		mov al, bl
-		shr al, 4d
-		call Convert
-		mov es:[di], ax
-		inc di
-		inc di
+			mov al, bl
+			shr al, 4d
+			call Convert
+			mov es:[di], ax
+			inc di
+			inc di
 
-		mov al, bl
-		and al, 00001111b
-		call Convert
-		mov es:[di], ax
-		inc di
-		inc di
+			mov al, bl
+			and al, 00001111b
+			call Convert
+			mov es:[di], ax
+			inc di
+			inc di
 
-		ret
-		endp	
+			ret
+			endp	
 ;-------------------------------------------------
 ; Writes values of registers to video mem
 ; Entry:	
@@ -134,31 +219,31 @@ PrintReg	proc
 
 PrintRegs	proc
 		
-        push bp
-		mov bp, sp
-		add bp, 6d
+			push bp
+			mov bp, sp
+			add bp, 6d
 
-		mov cx, 13d
-		mov di, 172d
-		mov si, offset RegsNames
-		@@loop1:
-			lodsb
-			stosw
-			lodsb
-			stosw
-			inc di
-			inc di
+			mov cx, 13d
+			mov di, 172d
+			mov si, offset RegsNames
+			@@loop1:
+				lodsb				; al = ds:[si++]
+				stosw				; es:[di] = ax; di += 2
+				lodsb
+				stosw
+				inc di
+				inc di
 
-			mov bx, [bp]
-			call PrintReg
+				mov bx, [bp]
+				call PrintReg
 
-			add di, 146d
-			add bp, 2d 
-			loop @@loop1
+				add di, 146d
+				add bp, 2d 
+				loop @@loop1
 
-        pop bp
-		ret
-		endp	
+			pop bp
+			ret
+			endp	
 ;-------------------------------------------------
 ; Writes border with regs
 ; Entry:	
@@ -190,8 +275,16 @@ MyInt09	proc
 		cmp al, 58h			; f12
 		jne @@continue
 
-        call HotKey
 		xor cs:NeedUpdate, 1d
+		cmp cs:NeedUpdate, 1d
+
+		je @@show
+			call RetMem
+			jmp @@continue
+
+		@@show:
+			call SaveMem
+        	call HotKey
 
 		@@continue:
 
@@ -219,7 +312,6 @@ MyInt08	proc
 
 		push sp ss es ds bp si di dx cx bx ax
 
-		;call HotKey
 		mov al, cs:NeedUpdate
 		cmp al, 1d			
 		jne @@continue
@@ -246,10 +338,12 @@ MyInt08	proc
 ; Destr:	ax
 
 ExitProg	proc
-		mov ax,  4c00h
-		int 21h
-		ret
-		endp
+
+			mov ax,  4c00h
+			int 21h
+
+			ret
+			endp
 ;-------------------------------------------------
 ; TSR exit of programm
 ; Entry:
@@ -258,14 +352,15 @@ ExitProg	proc
 
 ExitProgTSR	proc
 
-		mov ax, 3100h
-		mov dx, offset EndProgramm
-		shr dx, 4				; dx /= 4
-		inc dx
-		int 21h					; TSR
-		ret
+			mov ax, 3100h
+			mov dx, offset EndProgramm
 
-		endp
+			shr dx, 4				; dx /= 4
+			inc dx
+
+			int 21h					; TSR
+			ret
+			endp
 ;-------------------------------------------------
 Main:
 		mov ax, 3509h
@@ -297,6 +392,7 @@ Main:
 StringStyle	db 0c9h, 0cdh, 0bbh, 0bah, 020h, 0bah, 0c8h, 0cdh, 0bch
 RegsNames	db 'axbxcxdxsidibpdsesssspipcs'
 NeedUpdate	db 0
+OldMem		db 600 dup (?)
 
 EndProgramm:
 
